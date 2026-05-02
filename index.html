@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub bot</title>
+  </head>
+  <body>
+    <h2>GitHub bot</h2>
+
+    <input id="input" placeholder="Napiš třeba 'repo'" />
+    <button onclick="send()">Odeslat</button>
+
+    <pre id="output"></pre>
+
+    <script>
+      async function send() {
+        const text = document.getElementById('input').value.toLowerCase();
+
+        if (text.includes('repo')) {
+          const res = await fetch('/api/repos');
+
+          if (!res.ok) {
+            document.getElementById('output').innerText =
+              'Chyba nebo nejsi přihlášená';
+            return;
+          }
+
+          const data = await res.json();
+
+          document.getElementById('output').innerText = data
+            .filter((r) => r && r.name)
+            .map((r, i) => `${i + 1}. ${r.name}`)
+            .join('\n');
+        } else {
+          document.getElementById('output').innerText = 'Zkus napsat "repo"';
+        }
+      }
+    </script>
+  </body>
+</html>
