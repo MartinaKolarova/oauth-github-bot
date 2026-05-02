@@ -8,32 +8,40 @@
   <body>
     <h2>GitHub bot</h2>
 
-    <input id="input" placeholder="Napiš třeba 'repo'" />
+    <input id="input" placeholder="Zeptej se na své repozitáře..." />
     <button onclick="send()">Odeslat</button>
 
     <pre id="output"></pre>
 
     <script>
       async function send() {
-        const text = document.getElementById('input').value.toLowerCase();
+        const text = document.getElementById('input').value;
 
-        if (text.includes('repo')) {
-          const res = await fetch('/api/repos');
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ message: text }),
+        });
 
-          if (!res.ok) {
-            document.getElementById('output').innerText =
-              'Chyba nebo nejsi přihlášená';
-            return;
-          }
+        if (!res.ok) {
+          document.getElementById('output').innerText =
+            'Chyba nebo nejsi přihlášená';
+          return;
+        }
 
-          const data = await res.json();
+        const data = await res.json();
 
+        // pokud backend vrátí repo (pole)
+        if (Array.isArray(data)) {
           document.getElementById('output').innerText = data
             .filter((r) => r && r.name)
             .map((r, i) => `${i + 1}. ${r.name}`)
             .join('\n');
         } else {
-          document.getElementById('output').innerText = 'Zkus napsat "repo"';
+          // fallback (např. AI odpověď)
+          document.getElementById('output').innerText = data;
         }
       }
     </script>

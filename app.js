@@ -13,14 +13,13 @@ const app = express(); // 👈 1. vytvoříš app
 app.use(express.json()); // 👈 2. pak middleware
 app.use(cookieParser());
 
-// 👇 až potom můžeš používat OpenAI
-const openai = new OpenAI({
-  apiKey: 'TVŮJ_API_KEY',
-});
-
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const JWT_SECRET = process.env.JWT_SECRET;
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // middleware → debug
 function auth(req, res, next) {
@@ -178,6 +177,72 @@ app.get('/api/repos', auth, async (req, res) => {
     console.error('GitHub API error:', err.message);
     res.status(500).send('Chyba při volání GitHub API');
   }
+});
+
+function getFallbackIntent(message) {
+  const text = message.toLowerCase();
+
+  if (text.includes('detail') || text.includes('info')) {
+    return 'repo_detail';
+  }
+
+  if (text.includes('repo') || text.includes('projekt')) {
+    return 'get_repos';
+  }
+
+  return 'unknown';
+}
+
+app.post('/api/chat', auth, async (req, res) => {
+  const message = req.body.message;
+
+  const fallbackIntent = getFallbackIntent(message);
+  let intent = fallbackIntent;
+
+  try {
+    const aiResponse = await openai.responses.create({
+      model: 'gpt-4.1-mini',
+      input: `User says: "${message}". 
+Return ONLY JSON:
+{ "intent": "get_repos" } 
+or { "intent": "repo_detail" }
+or { "intent": "unknown" }`,
+    });
+
+    const text = aiResponse.output_text;
+    const parsed = JSON.parse(text);
+    intent = parsed.intent;
+  } catch (err) {
+    console.log('AI fallback aktivní:', err.code || err.message);
+  }
+
+  // GET REPOS
+  if (intent === 'get_repos') {
+    try {
+      const githubAccessToken = req.user.accessToken;
+
+      const response = await axios.get(
+        'https://api.github.com/user/repos?per_page=100',
+        {
+          headers: {
+            Authorization: `Bearer ${githubAccessToken}`,
+          },
+        },
+      );
+
+      return res.json(response.data);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).send('Chyba GitHub API');
+    }
+  }
+
+  // REPO DETAIL (zatím jen placeholder)
+  if (intent === 'repo_detail') {
+    return res.send('Zadej například: "detail repo název-repa"');
+  }
+
+  res.send('Zkus se zeptat na své repozitáře');
 });
 
 const path = require('path');
