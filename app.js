@@ -242,7 +242,7 @@ or { "intent": "unknown" }`,
     return res.send('Zadej například: "detail repo název-repa"');
   }
 
-  res.send('Zkus se zeptat na své repozitáře');
+  res.send('Zkus například:\n- ukaž moje repo\n- detail repo NAZEV_REPA');
 });
 
 const path = require('path');

@@ -4,7 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GitHub bot</title>
+
+    <style>
+      #output {
+        white-space: pre-wrap;
+        font-family: monospace;
+      }
+    </style>
   </head>
+
   <body>
     <h2>GitHub bot</h2>
 
@@ -15,33 +23,46 @@
 
     <script>
       async function send() {
-        const text = document.getElementById('input').value;
+        const text = document.getElementById('input').value.trim();
 
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ message: text }),
-        });
-
-        if (!res.ok) {
-          document.getElementById('output').innerText =
-            'Chyba nebo nejsi přihlášená';
+        if (!text) {
+          document.getElementById('output').textContent = 'Zadej dotaz';
           return;
         }
 
-        const data = await res.json();
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: text }),
+          });
 
-        // pokud backend vrátí repo (pole)
-        if (Array.isArray(data)) {
-          document.getElementById('output').innerText = data
-            .filter((r) => r && r.name)
-            .map((r, i) => `${i + 1}. ${r.name}`)
-            .join('\n');
-        } else {
-          // fallback (např. AI odpověď)
-          document.getElementById('output').innerText = data;
+          if (!res.ok) {
+            document.getElementById('output').textContent =
+              'Chyba nebo nejsi přihlášená';
+            return;
+          }
+
+          const data = await res.json();
+
+          // pokud backend vrátí repo (pole)
+          if (Array.isArray(data)) {
+            document.getElementById('output').textContent = data
+              .filter((r) => r && r.name)
+              .map((r, i) => {
+                const index = String(i + 1).padEnd(3, ' ');
+                const name = r.name.padEnd(30, ' ');
+                return `${index}${name} ⭐ ${r.stargazers_count}`;
+              })
+              .join('\n');
+          } else {
+            // fallback (např. textová odpověď)
+            document.getElementById('output').textContent = data;
+          }
+        } catch (err) {
+          document.getElementById('output').textContent = 'Chyba spojení';
         }
       }
     </script>
